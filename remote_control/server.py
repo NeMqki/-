@@ -12,14 +12,17 @@ import hmac
 import io
 import json
 import logging
-import secrets
-import socket
+import sys
+import threading
 from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
 log = logging.getLogger("remote_control")
-STATIC_DIR = Path(__file__).parent / "static"
+if getattr(sys, "frozen", False):  # PyInstaller で exe 化されたとき
+    STATIC_DIR = Path(sys._MEIPASS) / "remote_control" / "static"
+else:
+    STATIC_DIR = Path(__file__).parent / "static"
 
 
 # --------------------------------------------------------------------------
@@ -105,8 +108,6 @@ def _paste_text(g, text: str) -> None:
         import pyperclip
 
         pyperclip.copy(text)
-        import sys
-
         g.hotkey("command" if sys.platform == "darwin" else "ctrl", "v")
     except Exception:  # pragma: no cover - 環境依存
         log.warning("非ASCII文字の入力には pyperclip が必要です")
@@ -115,8 +116,20 @@ def _paste_text(g, text: str) -> None:
 # --------------------------------------------------------------------------
 # Web サーバー
 # --------------------------------------------------------------------------
-def create_app(token: str, screen_factory, input_factory, fps: float) -> web.Application:
+def create_app(
+    token: str, screen_factory, input_factory, fps: float, on_clients_changed=None
+) -> web.Application:
+    """on_clients_changed(n): 接続数が変わるたびにイベントループのスレッドで呼ばれる。"""
     app = web.Application()
+    clients = [0]
+
+    def changed(delta: int) -> None:
+        clients[0] += delta
+        if on_clients_changed:
+            try:
+                on_clients_changed(clients[0])
+            except Exception as e:  # noqa: BLE001
+                log.warning("on_clients_changed エラー: %s", e)
 
     def authorized(request: web.Request) -> bool:
         given = request.query.get("token", "")
@@ -131,6 +144,7 @@ def create_app(token: str, screen_factory, input_factory, fps: float) -> web.App
         ws = web.WebSocketResponse(heartbeat=20, max_msg_size=64 * 1024)
         await ws.prepare(request)
         log.info("接続: %s", request.remote)
+        changed(+1)
 
         screen = screen_factory()
         inp = input_factory(screen.monitor)
@@ -165,6 +179,7 @@ def create_app(token: str, screen_factory, input_factory, fps: float) -> web.App
                     log.warning("入力エラー %s: %s", ev, e)
         finally:
             task.cancel()
+            changed(-1)
             log.info("切断: %s", request.remote)
         return ws
 
@@ -174,15 +189,40 @@ def create_app(token: str, screen_factory, input_factory, fps: float) -> web.App
     return app
 
 
-def local_ip() -> str:
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("10.255.255.255", 1))
-        return s.getsockname()[0]
-    except OSError:
-        return "127.0.0.1"
-    finally:
-        s.close()
+class ServerThread:
+    """別スレッドでサーバーを動かす (GUIアプリ用)。"""
+
+    def __init__(self, app: web.Application, host: str, port: int):
+        self.app, self.host, self.port = app, host, port
+        self.loop = asyncio.new_event_loop()
+        self.started = threading.Event()
+        self.error: BaseException | None = None
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def start(self, timeout: float = 10) -> None:
+        self._thread.start()
+        self.started.wait(timeout)
+        if self.error:
+            raise self.error
+
+    def _run(self) -> None:
+        asyncio.set_event_loop(self.loop)
+        runner = web.AppRunner(self.app)
+        try:
+            self.loop.run_until_complete(runner.setup())
+            site = web.TCPSite(runner, self.host, self.port)
+            self.loop.run_until_complete(site.start())
+        except BaseException as e:  # noqa: BLE001 (ポート使用中など)
+            self.error = e
+            self.started.set()
+            return
+        self.started.set()
+        self.loop.run_forever()
+        self.loop.run_until_complete(runner.cleanup())
+
+    def stop(self) -> None:
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        self._thread.join(timeout=5)
 
 
 def print_qr(url: str) -> None:
@@ -197,31 +237,53 @@ def print_qr(url: str) -> None:
 
 
 def main() -> None:
+    """コマンドライン版 (python -m remote_control)。"""
+    from . import netinfo, system
+    from .config import Config, new_token
+
+    cfg = Config.load()
     p = argparse.ArgumentParser(description="スマホ/PCからこのPCを操作するリモートコントロール")
     p.add_argument("--host", default="0.0.0.0")
-    p.add_argument("--port", type=int, default=8765)
-    p.add_argument("--token", help="接続用トークン (省略時はランダム生成)")
-    p.add_argument("--monitor", type=int, default=1, help="キャプチャするモニタ番号 (1=メイン)")
-    p.add_argument("--fps", type=float, default=15)
-    p.add_argument("--max-width", type=int, default=1280, help="配信画像の最大幅")
-    p.add_argument("--quality", type=int, default=60, help="JPEG品質 (1-95)")
+    p.add_argument("--port", type=int, default=cfg.port)
+    p.add_argument("--token", help="合言葉を一時的に上書き")
+    p.add_argument("--new-token", action="store_true", help="合言葉を作り直して保存")
+    p.add_argument("--monitor", type=int, default=cfg.monitor, help="モニタ番号 (1=メイン)")
+    p.add_argument("--fps", type=float, default=cfg.fps)
+    p.add_argument("--max-width", type=int, default=cfg.max_width, help="配信画像の最大幅")
+    p.add_argument("--quality", type=int, default=cfg.quality, help="JPEG品質 (1-95)")
+    p.add_argument("--show-url", action="store_true", help="接続URLを表示して終了")
+    p.add_argument("--install-autostart", action="store_true", help="PC起動時に自動起動 (アプリ版)")
+    p.add_argument("--uninstall-autostart", action="store_true", help="自動起動を解除")
     a = p.parse_args()
 
+    if a.new_token:
+        cfg.token = new_token()
+        cfg.save()
+        print("合言葉を作り直しました。古いURLはもう使えません。")
+    if a.install_autostart or a.uninstall_autostart:
+        system.set_autostart(a.install_autostart)
+        print("自動起動を" + ("登録しました" if a.install_autostart else "解除しました"))
+    token = a.token or cfg.token
+
+    lan = netinfo.make_url(netinfo.lan_ip(), a.port, token)
+    ts_ip = netinfo.tailscale_ip()
+    ts = netinfo.make_url(ts_ip, a.port, token) if ts_ip else None
+    print("=" * 64)
+    print(f" 家のWi-Fi : {lan}")
+    print(f" 外出先    : {ts}" if ts else " 外出先    : (Tailscale 未検出)")
+    print("=" * 64)
+    print_qr(ts or lan)
+    if a.show_url or a.install_autostart or a.uninstall_autostart:
+        return
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-    token = a.token or secrets.token_urlsafe(16)
-    url = f"http://{local_ip()}:{a.port}/#token={token}"
-
-    print("=" * 60)
-    print(" リモートコントロール起動")
-    print(f" スマホ/別PCのブラウザで開く: {url}")
-    print("=" * 60)
-    print_qr(url)
-
+    awake = system.KeepAwake()
     app = create_app(
         token,
         screen_factory=lambda: Screen(a.monitor, a.max_width, a.quality),
         input_factory=Input,
         fps=a.fps,
+        on_clients_changed=(lambda n: awake.set(n > 0)) if cfg.keep_awake else None,
     )
     web.run_app(app, host=a.host, port=a.port, print=None)
 

@@ -58,3 +58,29 @@ async def test_frames_and_input(client):
         await asyncio.sleep(0.05)
     assert FakeInput.events == [{"t": "click", "x": 0.5, "y": 0.5}]
     await ws.close()
+
+
+def test_server_thread_and_client_count():
+    import urllib.request
+
+    from remote_control.server import ServerThread
+
+    counts = []
+    app = create_app("secret", FakeScreen, FakeInput, fps=100, on_clients_changed=counts.append)
+    srv = ServerThread(app, "127.0.0.1", 8798)
+    srv.start()
+    try:
+        assert b"Remote Control" in urllib.request.urlopen("http://127.0.0.1:8798/").read()
+
+        async def connect():
+            import aiohttp
+
+            async with aiohttp.ClientSession() as s:
+                async with s.ws_connect("http://127.0.0.1:8798/ws?token=secret") as ws:
+                    await ws.receive(timeout=2)
+            await asyncio.sleep(0.2)
+
+        asyncio.run(connect())
+        assert counts == [1, 0]
+    finally:
+        srv.stop()

@@ -1,64 +1,78 @@
 # Remote Control
 
-スマホや別のPCのブラウザから、自分のPCを遠隔操作するためのシンプルなソフトです。
-操作される側のPCでサーバーを起動し、表示されたURL（またはQRコード）をスマホで開くだけで使えます。
-スマホ側にアプリを入れる必要はありません。
+スマホや別のPCのブラウザから、自分のPCを遠隔操作するソフトです。
+スマホ側にアプリは不要で、PCに表示されたQRコードを読み取るだけで使えます。
 
-## 機能
+## かんたんな使い方 (Windows アプリ版)
 
-- PC画面のリアルタイム表示（JPEG配信、FPS・画質は変更可能）
-- マウス操作（クリック / 右クリック / ドラッグ / スクロール）
-- キーボード入力（日本語もOK、ショートカットキー用のボタンあり）
-- スマホ向けの2つの操作モード
-  - **直接タップ**: 押した場所をクリック。長押しで右クリック、なぞるとドラッグ、2本指でスクロール
-  - **トラックパッド**: ノートPCのタッチパッドのようにカーソルを動かす。タップでクリック、2本指タップで右クリック
-- 起動のたびにランダムな接続トークンを発行（URLを知らない人は接続できません）
+1. [Releases](../../releases) または Actions の「Build Windows exe」から `RemoteControl.exe` をダウンロード
+2. ダブルクリックで起動 (初回はファイアウォールの確認が出るので「プライベートネットワーク」で許可)
+3. 窓に出たQRコードをスマホで読み取る → PCの画面が出て操作できます
 
-## 使い方
+アプリの窓でできること:
 
-操作される側のPC（Windows / macOS / Linux）で:
+- 接続先の切り替え: **外出先 (Tailscale)** / **家のWi-Fi**
+- URLのコピー
+- **PCの起動時に自動で起動する** (チェックするだけ)
+- **スマホ接続中はPCをスリープさせない**
+- 画質: 高画質 / 標準 / 軽量 (モバイル回線向け)
+- 合言葉を作り直す (スマホをなくしたときなど、古いURLを使えなくする)
+
+設定は `%APPDATA%\RemoteControl\config.json`、動作ログは同じフォルダの `log.txt` に保存されます。
+
+> 署名のない exe なので、初回は Windows SmartScreen の警告が出ます。「詳細情報」→「実行」で起動できます。
+
+## 外出先から使う (Tailscale)
+
+1. PC と スマホ の両方に [Tailscale](https://tailscale.com/download) を入れ、同じアカウントでログイン
+2. アプリの窓で「外出先 (Tailscale)」を選び、表示されたQRコードをスマホで読み取る
+3. スマホで開いたページを「ホーム画面に追加」しておくと、次からアイコン1つで接続できます
+
+通信は Tailscale が暗号化します。**ルーターのポート開放でインターネットに直接公開しないでください。**
+
+## スマホでの操作
+
+- **直接タップ**: タップ=クリック / 長押し=右クリック / なぞる=ドラッグ / 2本指=スクロール
+- **トラックパッド**: 1本指でカーソル移動 / タップ=クリック / 2本指タップ=右クリック
+- 下の入力欄で文字入力 (日本語OK)、「キー」ボタンで Enter・矢印・Ctrl+C/V・Alt+Tab など
+
+## Python から使う (Windows / macOS / Linux)
 
 ```bash
 pip install -r requirements.txt
-pip install qrcode pyperclip   # 任意: QRコード表示と日本語入力用
-python -m remote_control
+python -m remote_control.app       # アプリ版 (窓あり)
+python -m remote_control           # コマンドライン版
 ```
 
-ターミナルに次のように表示されます:
+コマンドライン版のオプション:
 
+| オプション | 説明 |
+|---|---|
+| `--show-url` | 接続URLとQRコードを表示して終了 |
+| `--new-token` | 合言葉を作り直して保存 |
+| `--install-autostart` / `--uninstall-autostart` | PC起動時の自動起動を登録 / 解除 |
+| `--port` `--fps` `--max-width` `--quality` `--monitor` | 一時的に設定を上書き |
+
+OSごとの注意:
+
+- **macOS**: 「システム設定 → プライバシーとセキュリティ」で「画面収録」と「アクセシビリティ」を許可
+- **Linux**: X11 環境が必要 (Wayland では画面キャプチャ・入力が制限されます)
+
+## exe のビルド
+
+GitHub に push すると、GitHub Actions が Windows 上で自動ビルドし、起動テストまで行います。
+`v1.0.0` のようなタグを push すると Releases にも exe が公開されます。
+
+手元でビルドする場合 (Windows):
+
+```bash
+pip install -r requirements.txt pyinstaller
+pyinstaller --onefile --windowed --name RemoteControl --add-data "remote_control/static;remote_control/static" --hidden-import PIL.ImageTk run_app.py
 ```
- スマホ/別PCのブラウザで開く: http://192.168.1.10:8765/#token=xxxxxxxx
-```
-
-このURLを、同じWi-Fiにつないだスマホや別のPCのブラウザで開いてください。
-
-### オプション
-
-| オプション | 既定値 | 説明 |
-|---|---|---|
-| `--port` | 8765 | 待ち受けポート |
-| `--token` | ランダム | 接続トークンを固定したいときに指定 |
-| `--monitor` | 1 | キャプチャするモニタ（1=メイン） |
-| `--fps` | 15 | 最大フレームレート |
-| `--max-width` | 1280 | 配信する画像の最大幅（小さくすると軽くなります） |
-| `--quality` | 60 | JPEG画質（1〜95） |
-
-### OSごとの注意
-
-- **macOS**: 「システム設定 → プライバシーとセキュリティ」で、ターミナル（またはPython）に
-  「画面収録」と「アクセシビリティ」の許可を与えてください。
-- **Linux**: X11環境が必要です（Waylandでは画面キャプチャ・入力が制限されます）。
-- **Windows**: ファイアウォールの確認が出たら「プライベートネットワーク」で許可してください。
-
-## 外出先から使いたいとき
-
-このソフトは暗号化なし（HTTP）で動くため、**ポート開放してインターネットに直接公開しないでください**。
-外から使う場合は [Tailscale](https://tailscale.com/) などのVPNでスマホとPCを同じネットワークにつなぎ、
-Tailscale上のIPアドレスでアクセスするのがおすすめです。
 
 ## 開発
 
 ```bash
-pip install pytest pytest-asyncio
+pip install -r requirements.txt pytest pytest-asyncio
 python -m pytest
 ```
