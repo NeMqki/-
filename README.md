@@ -22,6 +22,23 @@
 
 > 署名のない exe なので、初回は Windows SmartScreen の警告が出ます。「詳細情報」→「実行」で起動できます。
 
+## スマホアプリ (Android .apk)
+
+1. Actions の「Build Android apk」(タグを付けた場合は Releases) から `RemoteControl.apk` をダウンロード
+2. スマホで開いてインストール (「提供元不明のアプリ」の許可を求められたら許可)
+3. アプリの「QRコードを読み取る」で、PCの窓に出ているQRコードを読み取る
+4. 次回からはアプリを開くだけで、すぐPCの画面が出ます
+
+- 全画面表示で、操作中は画面が消えません
+- 戻るボタンで「再読み込み / 接続先を変更 / 終了」
+
+> 更新版を上書きインストールするには、毎回同じ鍵で署名する必要があります。
+> リポジトリの Settings → Secrets に `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` /
+> `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` を登録すると、その鍵で署名されます。
+> 未設定の場合は、更新時に一度アンインストールしてから入れ直してください。
+
+iPhone の場合は、Safari でURLを開いて「ホーム画面に追加」すると、アプリのように使えます。
+
 ## 外出先から使う (Tailscale)
 
 1. PC と スマホ の両方に [Tailscale](https://tailscale.com/download) を入れ、同じアカウントでログイン
