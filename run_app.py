@@ -1,4 +1,4 @@
-"""PyInstaller 用のエントリーポイント (RemoteControl.exe)。"""
+"""PyInstaller 用のエントリーポイント (PocketDesk.exe)。"""
 from remote_control.app import main
 
 if __name__ == "__main__":

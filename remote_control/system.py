@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-APP_NAME = "RemoteControl"
+APP_NAME = "PocketDesk"
 
 
 # --------------------------------------------------------------------------
@@ -30,12 +30,12 @@ def _quote_win(args: list[str]) -> str:
 
 
 def _mac_plist() -> Path:
-    return Path.home() / "Library/LaunchAgents/com.remotecontrol.app.plist"
+    return Path.home() / "Library/LaunchAgents/com.pocketdesk.app.plist"
 
 
 def _linux_desktop() -> Path:
     base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return base / "autostart/remote-control.desktop"
+    return base / "autostart/pocketdesk.desktop"
 
 
 def autostart_enabled() -> bool:
@@ -83,7 +83,7 @@ def set_autostart(enabled: bool) -> None:
             '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
             '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
             '<plist version="1.0"><dict>'
-            "<key>Label</key><string>com.remotecontrol.app</string>"
+            "<key>Label</key><string>com.pocketdesk.app</string>"
             f"<key>ProgramArguments</key><array>{args}</array>"
             "<key>RunAtLoad</key><true/>"
             "</dict></plist>\n"
@@ -97,7 +97,7 @@ def set_autostart(enabled: bool) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     exec_line = " ".join(f'"{a}"' for a in cmd)
     path.write_text(
-        "[Desktop Entry]\nType=Application\nName=Remote Control\n"
+        "[Desktop Entry]\nType=Application\nName=PocketDesk\n"
         f"Exec={exec_line}\nX-GNOME-Autostart-enabled=true\n"
     )
 

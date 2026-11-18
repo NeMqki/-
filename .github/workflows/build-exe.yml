@@ -30,7 +30,7 @@ jobs:
       - name: Build exe
         run: >
           pyinstaller --noconfirm --onefile --windowed
-          --name RemoteControl
+          --name PocketDesk
           --add-data "remote_control/static;remote_control/static"
           --hidden-import PIL.ImageTk
           run_app.py
@@ -38,18 +38,18 @@ jobs:
       - name: Smoke test exe
         shell: pwsh
         run: |
-          $p = Start-Process dist\RemoteControl.exe -ArgumentList "--selftest","selftest.txt" -PassThru -Wait
+          $p = Start-Process dist\PocketDesk.exe -ArgumentList "--selftest","selftest.txt" -PassThru -Wait
           $r = Get-Content selftest.txt
           Write-Host "selftest: $r (exit $($p.ExitCode))"
           if ($r -ne "OK") { exit 1 }
 
       - uses: actions/upload-artifact@v4
         with:
-          name: RemoteControl-windows
-          path: dist/RemoteControl.exe
+          name: PocketDesk-windows
+          path: dist/PocketDesk.exe
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/RemoteControl.exe
+          files: dist/PocketDesk.exe

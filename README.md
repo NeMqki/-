@@ -1,11 +1,13 @@
-# Remote Control
+# PocketDesk (ポケットデスク)
 
-スマホや別のPCのブラウザから、自分のPCを遠隔操作するソフトです。
+ポケットの中に、自分のPCを。
+
+スマホや別のPCから、自分のPCを遠隔操作するアプリです。
 スマホ側にアプリは不要で、PCに表示されたQRコードを読み取るだけで使えます。
 
 ## かんたんな使い方 (Windows アプリ版)
 
-1. [Releases](../../releases) または Actions の「Build Windows exe」から `RemoteControl.exe` をダウンロード
+1. [Releases](../../releases) または Actions の「Build Windows exe」から `PocketDesk.exe` をダウンロード
 2. ダブルクリックで起動 (初回はファイアウォールの確認が出るので「プライベートネットワーク」で許可)
 3. 窓に出たQRコードをスマホで読み取る → PCの画面が出て操作できます
 
@@ -18,13 +20,13 @@
 - 画質: 高画質 / 標準 / 軽量 (モバイル回線向け)
 - 合言葉を作り直す (スマホをなくしたときなど、古いURLを使えなくする)
 
-設定は `%APPDATA%\RemoteControl\config.json`、動作ログは同じフォルダの `log.txt` に保存されます。
+設定は `%APPDATA%\PocketDesk\config.json`、動作ログは同じフォルダの `log.txt` に保存されます。
 
 > 署名のない exe なので、初回は Windows SmartScreen の警告が出ます。「詳細情報」→「実行」で起動できます。
 
 ## スマホアプリ (Android .apk)
 
-1. Actions の「Build Android apk」(タグを付けた場合は Releases) から `RemoteControl.apk` をダウンロード
+1. Actions の「Build Android apk」(タグを付けた場合は Releases) から `PocketDesk.apk` をダウンロード
 2. スマホで開いてインストール (「提供元不明のアプリ」の許可を求められたら許可)
 3. アプリの「QRコードを読み取る」で、PCの窓に出ているQRコードを読み取る
 4. 次回からはアプリを開くだけで、すぐPCの画面が出ます
@@ -84,7 +86,7 @@ GitHub に push すると、GitHub Actions が Windows 上で自動ビルドし�
 
 ```bash
 pip install -r requirements.txt pyinstaller
-pyinstaller --onefile --windowed --name RemoteControl --add-data "remote_control/static;remote_control/static" --hidden-import PIL.ImageTk run_app.py
+pyinstaller --onefile --windowed --name PocketDesk --add-data "remote_control/static;remote_control/static" --hidden-import PIL.ImageTk run_app.py
 ```
 
 ## 開発

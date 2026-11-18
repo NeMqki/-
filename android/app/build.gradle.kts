@@ -8,7 +8,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.remotecontrol.app"
+        applicationId = "com.pocketdesk.app"
         minSdk = 26
         targetSdk = 34
         // GitHub Actions の実行番号を使い、更新のたびに番号が上がるようにする

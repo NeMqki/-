@@ -12,8 +12,8 @@ from pathlib import Path
 
 def config_dir() -> Path:
     if sys.platform == "win32" and os.environ.get("APPDATA"):
-        return Path(os.environ["APPDATA"]) / "RemoteControl"
-    return Path.home() / ".remote_control"
+        return Path(os.environ["APPDATA"]) / "PocketDesk"
+    return Path.home() / ".pocketdesk"
 
 
 def new_token() -> str:

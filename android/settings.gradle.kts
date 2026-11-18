@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "RemoteControl"
+rootProject.name = "PocketDesk"
 include(":app")

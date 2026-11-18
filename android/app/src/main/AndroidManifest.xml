@@ -7,7 +7,7 @@
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.RemoteControl"
+        android:theme="@style/Theme.PocketDesk"
         android:usesCleartextTraffic="true">
 
         <activity

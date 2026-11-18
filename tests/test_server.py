@@ -39,7 +39,7 @@ async def test_rejects_bad_token(client):
 async def test_index(client):
     resp = await client.get("/")
     assert resp.status == 200
-    assert "Remote Control" in await resp.text()
+    assert "PocketDesk" in await resp.text()
 
 
 async def test_frames_and_input(client):
@@ -70,7 +70,7 @@ def test_server_thread_and_client_count():
     srv = ServerThread(app, "127.0.0.1", 8798)
     srv.start()
     try:
-        assert b"Remote Control" in urllib.request.urlopen("http://127.0.0.1:8798/").read()
+        assert b"PocketDesk" in urllib.request.urlopen("http://127.0.0.1:8798/").read()
 
         async def connect():
             import aiohttp

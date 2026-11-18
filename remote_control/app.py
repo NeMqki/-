@@ -42,7 +42,7 @@ class App:
         self.awake = system.KeepAwake()
         self.server: ServerThread | None = None
 
-        root.title("Remote Control")
+        root.title("PocketDesk")
         root.resizable(False, False)
         root.protocol("WM_DELETE_WINDOW", self.on_close)
         if sys.platform == "win32":
@@ -120,7 +120,7 @@ class App:
         except OSError as e:
             logging.exception("サーバー起動失敗")
             messagebox.showerror(
-                "Remote Control",
+                "PocketDesk",
                 f"ポート {cfg.port} を使えませんでした。\nすでに起動していませんか？\n\n{e}",
             )
             self.root.destroy()
@@ -176,7 +176,7 @@ class App:
         try:
             system.set_autostart(self.autostart_var.get())
         except OSError as e:
-            messagebox.showerror("Remote Control", f"自動起動の設定に失敗しました\n{e}")
+            messagebox.showerror("PocketDesk", f"自動起動の設定に失敗しました\n{e}")
             self.autostart_var.set(not self.autostart_var.get())
 
     def toggle_awake(self) -> None:
@@ -199,7 +199,7 @@ class App:
 
     def regen_token(self) -> None:
         if not messagebox.askyesno(
-            "Remote Control",
+            "PocketDesk",
             "合言葉を作り直すと、今までのURLでは接続できなくなります。\nスマホでもう一度QRコードを読み取る必要があります。\n\n作り直しますか？",
         ):
             return
@@ -215,7 +215,7 @@ class App:
 
     def on_close(self) -> None:
         if self.clients and not messagebox.askyesno(
-            "Remote Control", "スマホが接続中です。終了すると操作できなくなります。終了しますか？"
+            "PocketDesk", "スマホが接続中です。終了すると操作できなくなります。終了しますか？"
         ):
             return
         if self.server:
@@ -249,7 +249,7 @@ def selftest(out_path: str) -> int:
         root.update()
         html = urllib.request.urlopen(f"http://127.0.0.1:{cfg.port}/", timeout=5).read().decode()
         shot = Screen(1, 640, 50).grab_jpeg()
-        ok = "Remote Control" in html and shot[:2] == b"\xff\xd8"
+        ok = "PocketDesk" in html and shot[:2] == b"\xff\xd8"
         result = "OK" if ok else "FAIL: unexpected response"
         app.server.stop()
         root.destroy()

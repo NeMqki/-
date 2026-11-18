@@ -47,15 +47,15 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           gradle assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk RemoteControl.apk
+          cp app/build/outputs/apk/debug/app-debug.apk PocketDesk.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: RemoteControl-android
-          path: android/RemoteControl.apk
+          name: PocketDesk-android
+          path: android/PocketDesk.apk
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: android/RemoteControl.apk
+          files: android/PocketDesk.apk

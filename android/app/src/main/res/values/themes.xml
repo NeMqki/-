@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.RemoteControl" parent="Theme.AppCompat.NoActionBar">
+    <style name="Theme.PocketDesk" parent="Theme.AppCompat.NoActionBar">
         <item name="colorPrimary">#3B82F6</item>
         <item name="colorPrimaryDark">#1E40AF</item>
         <item name="colorAccent">#3B82F6</item>
