@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- モニターとスマホのアイコン (108dp の中央 66dp に収める) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- モニター -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,34h44a3,3 0,0 1,3 3v28a3,3 0,0 1,-3 3H28a3,3 0,0 1,-3 -3V37a3,3 0,0 1,3 -3zM29,38v26h42V38z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M45,68h10v5h6v3H39v-3h6z" />
+    <!-- スマホ -->
+    <path
+        android:fillColor="#60A5FA"
+        android:pathData="M66,48h12a2.5,2.5 0,0 1,2.5 2.5v23a2.5,2.5 0,0 1,-2.5 2.5H66a2.5,2.5 0,0 1,-2.5 -2.5v-23A2.5,2.5 0,0 1,66 48z" />
+    <path
+        android:fillColor="#1E3A8A"
+        android:pathData="M66,51h12v19H66z" />
+</vector>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Remote Control</string>
+    <string name="setup_help">1. PCで RemoteControl.exe を起動します\n2. 下のボタンを押して、PCの窓に出ているQRコードを読み取ります\n\n外出先から使うときは、スマホとPCの両方で Tailscale をオンにして、PCの窓で「外出先 (Tailscale)」を選んでください。</string>
+    <string name="scan">QRコードを読み取る</string>
+    <string name="scan_prompt">PCの窓に表示されたQRコードを読み取ってください</string>
+    <string name="manual">またはURLを入力</string>
+    <string name="connect">このURLで接続</string>
+    <string name="invalid_url">PCアプリが表示したURL (http://…/#token=…) ではありません</string>
+    <string name="menu_reload">再読み込み</string>
+    <string name="menu_change">接続先を変更</string>
+    <string name="menu_exit">終了</string>
+    <string name="retry">再試行</string>
+    <string name="error_title">PCに接続できません</string>
+    <string name="error_message">・PCで Remote Control が起動しているか\n・PCがスリープしていないか\n・外出先なら Tailscale がオンになっているか\nを確認してください。\n\n(%1$s)</string>
+</resources>
