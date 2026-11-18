@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Remote Control</title>
+<style>
+  :root { --bg:#111; --fg:#eee; --bar:#1e1e1e; --btn:#333; --accent:#3b82f6; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font-family:system-ui,sans-serif; overflow:hidden; }
+  #wrap { display:flex; flex-direction:column; height:100%; }
+  #stage { flex:1; position:relative; display:flex; align-items:center; justify-content:center;
+    touch-action:none; user-select:none; -webkit-user-select:none; overflow:hidden; }
+  #screen { max-width:100%; max-height:100%; display:block; pointer-events:none; }
+  #cursor { position:absolute; width:14px; height:14px; margin:-2px 0 0 -2px; pointer-events:none;
+    border-left:3px solid #fff; border-top:3px solid #fff; filter:drop-shadow(0 0 2px #000); display:none; }
+  #status { position:absolute; top:8px; left:8px; font-size:12px; background:#0008; padding:4px 8px; border-radius:6px; }
+  #bar { background:var(--bar); padding:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  #bar button { background:var(--btn); color:var(--fg); border:0; border-radius:6px; padding:8px 10px; font-size:14px; }
+  #bar button.on { background:var(--accent); }
+  #text { flex:1; min-width:120px; padding:8px; border-radius:6px; border:0; font-size:16px; background:#2a2a2a; color:var(--fg); }
+  #keys { display:none; width:100%; gap:6px; flex-wrap:wrap; }
+  #keys.show { display:flex; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <img id="screen" alt="">
+    <div id="cursor"></div>
+    <div id="status">接続中…</div>
+  </div>
+  <div id="bar">
+    <button id="mode">直接タップ</button>
+    <input id="text" placeholder="文字入力 → 送信" autocomplete="off" autocapitalize="off">
+    <button id="send">送信</button>
+    <button id="toggleKeys">キー</button>
+    <div id="keys">
+      <button data-key="enter">Enter</button>
+      <button data-key="backspace">BS</button>
+      <button data-key="esc">Esc</button>
+      <button data-key="tab">Tab</button>
+      <button data-key="up">↑</button>
+      <button data-key="down">↓</button>
+      <button data-key="left">←</button>
+      <button data-key="right">→</button>
+      <button data-key="c" data-mods="ctrl">Ctrl+C</button>
+      <button data-key="v" data-mods="ctrl">Ctrl+V</button>
+      <button data-key="z" data-mods="ctrl">Ctrl+Z</button>
+      <button data-key="tab" data-mods="alt">Alt+Tab</button>
+      <button data-key="win">Win</button>
+      <button id="rclick">右クリック</button>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const img = $("screen"), stage = $("stage"), cur = $("cursor"), status = $("status");
+  const token = new URLSearchParams(location.hash.slice(1)).get("token") || "";
+  let ws, lastUrl, trackpad = false;
+  let pos = { x: 0.5, y: 0.5 }; // 正規化座標
+
+  // ---------- 接続 ----------
+  function connect() {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+    ws.binaryType = "blob";
+    ws.onopen = () => { status.textContent = "接続済み"; setTimeout(() => status.style.display = "none", 1500); };
+    ws.onmessage = (e) => {
+      const url = URL.createObjectURL(e.data);
+      img.onload = () => { if (lastUrl) URL.revokeObjectURL(lastUrl); lastUrl = url; drawCursor(); send({ t: "ack" }); };
+      img.src = url;
+    };
+    ws.onclose = () => { status.style.display = ""; status.textContent = "切断されました。再接続中…"; setTimeout(connect, 2000); };
+  }
+  const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+  const clamp = (v) => Math.min(1, Math.max(0, v));
+
+  function toNorm(clientX, clientY) {
+    const r = img.getBoundingClientRect();
+    return { x: clamp((clientX - r.left) / r.width), y: clamp((clientY - r.top) / r.height) };
+  }
+  function drawCursor() {
+    const r = img.getBoundingClientRect(), s = stage.getBoundingClientRect();
+    cur.style.display = "block";
+    cur.style.left = (r.left - s.left + pos.x * r.width) + "px";
+    cur.style.top = (r.top - s.top + pos.y * r.height) + "px";
+  }
+  const at = (extra) => Object.assign({ x: pos.x, y: pos.y }, extra);
+
+  // ---------- マウス (PCブラウザから) ----------
+  stage.addEventListener("mousedown", (e) => {
+    pos = toNorm(e.clientX, e.clientY);
+    send(at({ t: "down", button: ["left", "middle", "right"][e.button] }));
+  });
+  stage.addEventListener("mouseup", (e) => {
+    pos = toNorm(e.clientX, e.clientY);
+    send(at({ t: "up", button: ["left", "middle", "right"][e.button] }));
+  });
+  let moveQueued = false;
+  stage.addEventListener("mousemove", (e) => {
+    pos = toNorm(e.clientX, e.clientY); drawCursor();
+    if (!moveQueued) { moveQueued = true; requestAnimationFrame(() => { moveQueued = false; send(at({ t: "move" })); }); }
+  });
+  stage.addEventListener("contextmenu", (e) => e.preventDefault());
+  stage.addEventListener("wheel", (e) => { e.preventDefault(); send({ t: "scroll", dy: e.deltaY > 0 ? -3 : 3 }); }, { passive: false });
+
+  // ---------- タッチ (スマホから) ----------
+  // 直接タップ: タップ=クリック / 長押し=右クリック / ドラッグ=左ドラッグ / 2本指=スクロール
+  // トラックパッド: 1本指でカーソル移動 / タップ=クリック / 2本指タップ=右クリック / 2本指=スクロール
+  let t0 = null, longTimer = null, dragging = false, moved = false, maxTouches = 0, lastY = 0, lastPt = null;
+  stage.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    maxTouches = Math.max(maxTouches, e.touches.length);
+    const p = e.touches[0];
+    if (e.touches.length === 1) {
+      t0 = Date.now(); moved = false; dragging = false; lastPt = { x: p.clientX, y: p.clientY };
+      if (!trackpad) {
+        pos = toNorm(p.clientX, p.clientY); drawCursor(); send(at({ t: "move" }));
+        longTimer = setTimeout(() => { longTimer = null; if (!moved) { send(at({ t: "click", button: "right" })); t0 = null; } }, 550);
+      }
+    } else {
+      clearTimeout(longTimer); longTimer = null;
+      lastY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    }
+  }, { passive: false });
+
+  stage.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    if (e.touches.length >= 2) {
+      const y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const dy = y - lastY;
+      if (Math.abs(dy) > 12) { send({ t: "scroll", dy: Math.round(dy / 12) }); lastY = y; moved = true; }
+      return;
+    }
+    const p = e.touches[0];
+    const dx = p.clientX - lastPt.x, dy = p.clientY - lastPt.y;
+    if (Math.hypot(dx, dy) > 6) { moved = true; clearTimeout(longTimer); longTimer = null; }
+    if (trackpad) {
+      const r = img.getBoundingClientRect();
+      pos = { x: clamp(pos.x + dx * 1.8 / r.width), y: clamp(pos.y + dy * 1.8 / r.height) };
+      lastPt = { x: p.clientX, y: p.clientY };
+      drawCursor(); send(at({ t: "move" }));
+    } else if (moved && t0 !== null) {
+      if (!dragging) { dragging = true; send(at({ t: "down", button: "left" })); }
+      pos = toNorm(p.clientX, p.clientY); drawCursor(); send(at({ t: "move" }));
+    }
+  }, { passive: false });
+
+  stage.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    if (e.touches.length > 0) return;
+    clearTimeout(longTimer); longTimer = null;
+    if (dragging) send(at({ t: "up", button: "left" }));
+    else if (t0 !== null && !moved && Date.now() - t0 < 400) {
+      send(at({ t: "click", button: maxTouches >= 2 ? "right" : "left" }));
+    }
+    dragging = false; t0 = null; maxTouches = 0;
+  }, { passive: false });
+
+  // ---------- キーボード ----------
+  const KEYMAP = { Enter: "enter", Backspace: "backspace", Escape: "esc", Tab: "tab", Delete: "delete",
+    ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Home: "home", End: "end",
+    PageUp: "pageup", PageDown: "pagedown", " ": "space", Meta: "win" };
+  for (let i = 1; i <= 12; i++) KEYMAP["F" + i] = "f" + i;
+  document.addEventListener("keydown", (e) => {
+    if (document.activeElement === $("text")) { if (e.key === "Enter") { e.preventDefault(); sendText(); } return; }
+    const mods = [];
+    if (e.ctrlKey) mods.push("ctrl"); if (e.altKey) mods.push("alt"); if (e.metaKey) mods.push("command");
+    if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
+    e.preventDefault();
+    if (KEYMAP[e.key]) send({ t: "key", key: KEYMAP[e.key], mods: e.shiftKey ? mods.concat("shift") : mods });
+    else if (e.key.length === 1 && mods.length) send({ t: "key", key: e.key.toLowerCase(), mods });
+    else if (e.key.length === 1) send({ t: "text", text: e.key });
+  });
+
+  function sendText() {
+    const v = $("text").value;
+    if (v) { send({ t: "text", text: v }); $("text").value = ""; }
+  }
+  $("send").onclick = sendText;
+  $("toggleKeys").onclick = () => { $("keys").classList.toggle("show"); $("toggleKeys").classList.toggle("on"); setTimeout(drawCursor, 50); };
+  $("mode").onclick = () => {
+    trackpad = !trackpad;
+    $("mode").textContent = trackpad ? "トラックパッド" : "直接タップ";
+    $("mode").classList.toggle("on", trackpad);
+  };
+  $("rclick").onclick = () => send(at({ t: "click", button: "right" }));
+  document.querySelectorAll("#keys button[data-key]").forEach((b) => {
+    b.onclick = () => send({ t: "key", key: b.dataset.key, mods: b.dataset.mods ? b.dataset.mods.split(",") : [] });
+  });
+  window.addEventListener("resize", drawCursor);
+
+  if (!token) { status.textContent = "URLにトークンがありません (PC側に表示されたURLを開いてください)"; return; }
+  connect();
+})();
+</script>
+</body>
+</html>
